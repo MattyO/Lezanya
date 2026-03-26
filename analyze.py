@@ -62,7 +62,7 @@ class funct():
                 c.parent = self
 
     def to_dict(self):
-        return {'name':self.name, 'type':'function', 'calls': self.calls, 'from_file': self.from_file, 'info': info, }
+        return {'name':self.name, 'type':'function', 'calls': self.calls, 'from_file': self.from_file, 'info': self.info }
 
     @classmethod
     def from_dict(klass, d):
@@ -153,7 +153,7 @@ class cls():
             'name': self.name,
             'type': 'class',
             'from_file': self.from_file,
-            'info': info,
+            'info': self.info,
             'functions': [ f.to_dict() for f in self.functs]
         }
 
@@ -201,6 +201,9 @@ def find_definitions_in_directory(directory):
 
     return definitions
 
+def calc_info(node):
+    return  {'location': (node.lineno, node.col_offset), 'size': node.end_lineno - node.lineno }
+
 def find_definitions(filename):
     defs = []
     example_file = open(filename, 'r')
@@ -209,7 +212,7 @@ def find_definitions(filename):
     for node in nodes:
         info = {'location': (node.lineno, node.col_offset), 'size': node.end_lineno - node.lineno }
         if type(node) == ast.FunctionDef:
-            defs.append(funct(node.name, calls=get_names(node), from_file=filename, info=info))
+            defs.append(funct(node.name, calls=get_names(node), from_file=filename, info=calc_info(node)))
 
         if type(node) == ast.ClassDef:
             functs = []
@@ -217,8 +220,8 @@ def find_definitions(filename):
                 if type(b) == ast.FunctionDef:
                     call_names = get_names(b)
                     #call_names: call_names.remove(b.name)
-                    functs.append(funct(b.name, calls=call_names, info=info))
-            defs.append(cls(node.name, *functs, from_file=filename))
+                    functs.append(funct(b.name, calls=call_names, info=calc_info(node)))
+            defs.append(cls(node.name, *functs, from_file=filename, info=calc_info(node)))
 
     return defs
 

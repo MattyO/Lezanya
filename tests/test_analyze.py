@@ -185,16 +185,18 @@ class AnalyseTest(unittest.TestCase):
             {   'name':'testclass',
                 'type': 'class',
                 'from_file': 'testfile.py',
+                 'info': {},
                 'functions': [
-                    {'name':'foo', 'type':'function', 'calls': ['one'], 'from_file': None},
-                    {'name':'bar', 'type':'function', 'calls': [], 'from_file': None}
+                    {'name':'foo', 'type':'function', 'calls': ['one'], 'from_file': None, 'info': {} },
+
+                    {'name':'bar', 'type':'function', 'calls': [], 'from_file': None, 'info': {}}
                 ]
             }
         )
     def test_funct_to_dict(self):
         self.assertEqual(
             funct('testfunct', calls=['one', 'foo', 'bar'], from_file='testfile.py').to_dict(),
-            {'name':'testfunct', 'type':'function', 'calls': ['one', 'foo', 'bar'], 'from_file':'testfile.py'}
+            {'name':'testfunct', 'type':'function', 'calls': ['one', 'foo', 'bar'], 'from_file':'testfile.py', 'info': {}}
         )
 
     def test_write_definitions_to_file(self):
