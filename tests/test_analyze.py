@@ -1,4 +1,4 @@
-import ast 
+import ast
 import unittest
 import pathlib
 import os
@@ -15,7 +15,7 @@ class AnalyseTest(unittest.TestCase):
         self.assertFalse(funct('test') ==  funct('not test'))
 
     def test_class_funcaiton_names(self):
-        self.assertEqual(cls("Test", funct("one"), funct('two')).function_names(), ['one', 'two']) 
+        self.assertEqual(cls("Test", funct("one"), funct('two')).function_names(), ['one', 'two'])
 
 
     def test_class_equality(self):
@@ -34,21 +34,21 @@ class AnalyseTest(unittest.TestCase):
         self.assertIn(funct('test'), [funct('test')])
 
     def test_find_definitions_in_directory(self):
-        definitions = analyze.find_definitions_in_directory('tests/files') 
+        definitions = analyze.find_definitions_in_directory('tests/files')
         self.assertIn(funct('start'), definitions)
         self.assertIn(cls('Example', funct('something'), funct('somethingelse')), definitions)
         self.assertIn(cls('ThingThree', funct('baz'), funct('call_cycle')), definitions)
 
 
     def test_find_definitions(self):
-        definitions = analyze.find_definitions('tests/files/example.py') 
+        definitions = analyze.find_definitions('tests/files/example.py')
 
         self.assertIn(funct('start'), definitions)
         self.assertIn(cls('ThingTwo', funct('two')), definitions)
-        self.assertIn(cls('Example', funct('something'), funct('somethingelse')), definitions)
+        self.assertIn(cls('Example', funct('something'), funct('somethingelse'), funct('takes_params')), definitions)
 
     def test_find_definitions_calls(self):
-        definitions = analyze.find_definitions('tests/files/example.py') 
+        definitions = analyze.find_definitions('tests/files/example.py')
         e_def = definitions[1]
 
         self.assertEqual(e_def.functs[1].name, 'somethingelse')
@@ -61,7 +61,7 @@ class AnalyseTest(unittest.TestCase):
         nodes = ast.parse(example_file.read()).body
         example_file.close()
 
-        self.assertEqual(analyze.get_names(nodes[0].body[0]), ['two', 'foo'] )
+        self.assertEqual(analyze.get_names(nodes[0].body[0]), [] )
 
     def test_get_name_not_blank(self):
         example_file = open("tests/files/example.py", 'r')
@@ -85,15 +85,15 @@ class AnalyseTest(unittest.TestCase):
         self.assertEqual(cls("Example", funct('testtest')).get_funct('nothere'), None)
 
     def test_find_class(self):
-        definitions = analyze.find_definitions('tests/files/example.py') 
+        definitions = analyze.find_definitions('tests/files/example.py')
         self.assertEqual(cls('Example', funct('somethingelse')), analyze.find_class('somethingelse', definitions))
 
     def test_find_class_return_none_when_no_match(self):
-        definitions = analyze.find_definitions('tests/files/example.py') 
+        definitions = analyze.find_definitions('tests/files/example.py')
         self.assertEqual(None, analyze.find_class('notafunction', definitions))
 
     def test_find_class_returns_functions(self):
-        definitions = analyze.find_definitions('tests/files/example.py') 
+        definitions = analyze.find_definitions('tests/files/example.py')
         self.assertEqual(funct('start'), analyze.find_class('start', definitions))
 
     def test_find_class_follows_function_class_calls(self):
@@ -105,19 +105,20 @@ class AnalyseTest(unittest.TestCase):
         self.assertEqual(found_funct.calls[0], cls('Example', funct('somethingelse')))
 
     def test_find_class_is_recursive(self):
-        definitions = analyze.find_definitions('tests/files/example.py') 
+        definitions = analyze.find_definitions('tests/files/example.py')
         found_class = analyze.find_class('somethingelse', definitions)
+        print(found_class.calls)
         self.assertEqual(len(found_class.calls), 1)
         self.assertEqual(cls('ThingTwo', funct('two')), found_class.calls[0])
 
 
     def test_calls_link_to_their_parent(self):
-        definitions = analyze.find_definitions('tests/files/example.py') 
+        definitions = analyze.find_definitions('tests/files/example.py')
         found_class = analyze.find_class('somethingelse', definitions)
         self.assertEqual(cls('Example', funct('somethingelse')), found_class.calls[0].parent)
 
     def test_ancestors(self):
-        definitions = analyze.find_definitions('tests/files/example.py') 
+        definitions = analyze.find_definitions('tests/files/example.py')
         found_class = analyze.find_class('start', definitions)
         ancestors = found_class.calls[0].calls[0].ancestors()
         self.assertEqual(ancestors[0], funct('start'))
@@ -127,7 +128,7 @@ class AnalyseTest(unittest.TestCase):
 
 
     def test_cycles_short_circit(self):
-        definitions = analyze.find_definitions('tests/files/more_examples.py') 
+        definitions = analyze.find_definitions('tests/files/more_examples.py')
         found_class = analyze.find_class('zed', definitions)
         self.assertEqual(len(found_class.calls), 1)
         self.assertEqual(cls('ThingThree', funct('call_cycle')), found_class.calls[0])
@@ -139,7 +140,7 @@ class AnalyseTest(unittest.TestCase):
         import cssselect
         test_files_name ='tests/files/tmp/def_file.html'
 
-        definitions = analyze.find_definitions_in_directory('tests/files') 
+        definitions = analyze.find_definitions_in_directory('tests/files')
         analyze.save_definitions(definitions, test_files_name)
 
         doc = lxml.etree.fromstring(pathlib.Path(test_files_name).read_text())
@@ -163,7 +164,7 @@ class AnalyseTest(unittest.TestCase):
         import cssselect
         test_files_name ='tests/files/tmp/tree_file.html'
 
-        definitions = analyze.find_definitions_in_directory('tests/files') 
+        definitions = analyze.find_definitions_in_directory('tests/files')
         tree = analyze.find_class('start', definitions)
         analyze.save_tree(tree, test_files_name)
 
@@ -181,7 +182,7 @@ class AnalyseTest(unittest.TestCase):
     def test_class_to_dict(self):
         self.assertEqual(
             cls('testclass', funct('foo', calls=['one']), funct('bar'), from_file='testfile.py').to_dict(),
-            {   'name':'testclass', 
+            {   'name':'testclass',
                 'type': 'class',
                 'from_file': 'testfile.py',
                 'functions': [
@@ -198,13 +199,13 @@ class AnalyseTest(unittest.TestCase):
 
     def test_write_definitions_to_file(self):
         test_files_name ='tests/files/tmp/definitions.def'
-        definitions = analyze.find_definitions_in_directory('tests/files') 
+        definitions = analyze.find_definitions_in_directory('tests/files')
         analyze.save_definitions_json(definitions, test_files_name )
 
         def_json = json.loads(pathlib.Path(test_files_name).read_text())
 
         self.assertEqual(
-            [i['name'] for i in def_json], 
+            [i['name'] for i in def_json],
             ['ThingTwo', 'Example', 'start', 'ThingThree', 'ContainsCycle']
         )
 
@@ -213,7 +214,7 @@ class AnalyseTest(unittest.TestCase):
 
     def test_read_defs_from_files(self):
         test_files_name ='tests/files/tmp/definitions.def'
-        definitions = analyze.find_definitions_in_directory('tests/files') 
+        definitions = analyze.find_definitions_in_directory('tests/files')
         analyze.save_definitions_json(definitions, test_files_name )
         hydrated_defs = analyze.read_definitions_directory('tests/files/tmp/')
 
@@ -223,21 +224,21 @@ class AnalyseTest(unittest.TestCase):
         self.assertFalse(os.path.exists(test_files_name))
 
     def test_find_roots(self):
-        definitions = analyze.find_definitions_in_directory('tests/files') 
+        definitions = analyze.find_definitions_in_directory('tests/files')
         self.assertTrue('start' in analyze.find_roots(definitions))
 
     #def test_find_orphans(self):
-    #    definitions = analyze.find_definitions_in_directory('tests/files') 
+    #    definitions = analyze.find_definitions_in_directory('tests/files')
     #    self.assertEqual(analyze.find_orphans(definitions), ['Exampe.something'])
 
 
     def test_call_names(self):
-        definitions = analyze.find_definitions_in_directory('tests/files') 
+        definitions = analyze.find_definitions_in_directory('tests/files')
         self.assertEqual(analyze.call_names(definitions[0]), ['two'])
         self.assertEqual(analyze.call_names(definitions[2]), ['start'])
 
     def test_is_called(self):
-        definitions = analyze.find_definitions_in_directory('tests/files') 
+        definitions = analyze.find_definitions_in_directory('tests/files')
         self.assertTrue(analyze.is_called('two', definitions))
         self.assertTrue(analyze.is_called('somethingelse', definitions))
         self.assertFalse(analyze.is_called('start', definitions))

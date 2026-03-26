@@ -47,7 +47,7 @@ def flatten(S):
     return S[:1] + flatten(S[1:])
 
 class funct():
-    def __init__(self, name, calls=[], from_file=None):
+    def __init__(self, name, calls=[], from_file=None, info={}):
         if name in calls:
             calls.remove(name)
         self.name = name
@@ -55,13 +55,14 @@ class funct():
         self.parent = None
         self.cycle = False
         self.from_file= from_file
+        self.info = info
 
         for c in self.calls:
             if isinstance(c, cls) or isinstance(c, funct):
                 c.parent = self
 
     def to_dict(self):
-        return {'name':self.name, 'type':'function', 'calls': self.calls, 'from_file': self.from_file}
+        return {'name':self.name, 'type':'function', 'calls': self.calls, 'from_file': self.from_file, 'info': info, }
 
     @classmethod
     def from_dict(klass, d):
@@ -131,13 +132,14 @@ def find_class(function_name, defintions, parent=None):
     return found_return
 
 class cls():
-    def __init__(self, name, *functs, calls=[], from_file=None):
+    def __init__(self, name, *functs, calls=[], from_file=None, info={}):
         self.name = name
         self.functs = functs
         self.calls = calls
         self.parent = None
         self.cycle = False
         self.from_file= from_file
+        self.info = info
 
         for c in self.calls:
             if isinstance(c, cls) or isinstance(c, funct):
@@ -147,13 +149,14 @@ class cls():
         return "<cls(" + self.name + " functs:[" + ",".join(self.function_names()) + "])>"
 
     def to_dict(self):
-        return {   
-            'name': self.name, 
+        return {
+            'name': self.name,
             'type': 'class',
             'from_file': self.from_file,
+            'info': info,
             'functions': [ f.to_dict() for f in self.functs]
         }
-        
+
     @classmethod
     def from_dict(klass, d):
         return klass(d['name'], *[funct.from_dict(d) for d in d['functions']], from_file=d['from_file'])
@@ -204,22 +207,23 @@ def find_definitions(filename):
     nodes = ast.parse(example_file.read()).body
     example_file.close()
     for node in nodes:
+        info = {'location': (node.lineno, node.col_offset), 'size': node.end_lineno - node.lineno }
         if type(node) == ast.FunctionDef:
-            defs.append(funct(node.name, calls=get_names(node), from_file=filename))
+            defs.append(funct(node.name, calls=get_names(node), from_file=filename, info=info))
 
         if type(node) == ast.ClassDef:
             functs = []
             for b in node.body:
                 if type(b) == ast.FunctionDef:
                     call_names = get_names(b)
-                    call_names.remove(b.name)
-                    functs.append(funct(b.name, calls=call_names))
+                    #call_names: call_names.remove(b.name)
+                    functs.append(funct(b.name, calls=call_names, info=info))
             defs.append(cls(node.name, *functs, from_file=filename))
 
     return defs
 
 
-#is this a good idea?  will this work? 
+#is this a good idea?  will this work?
 def walk_tree(node, callback, name=None):
     callback(this_node, name=name)
 
@@ -282,7 +286,7 @@ def get_names(node):
             names += [node.func.attr]
 
     for field in node._fields:
-        sub_node = getattr(node, field) 
+        sub_node = getattr(node, field)
 
         if isinstance(sub_node, ast.Call):
             if(isinstance(sub_node.func, ast.Attribute)):
